@@ -1,0 +1,23 @@
+# Build
+bin/
+obj/
+
+# Rider / IntelliJ
+.idea/
+
+# Visual Studio
+.vs/
+
+# User files
+*.user
+*.suo
+
+# Logs
+*.log
+
+# Database
+*.db
+app.db
+
+# OS
+.DS_Store
