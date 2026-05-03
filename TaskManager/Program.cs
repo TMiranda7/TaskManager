@@ -6,6 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using TaskManager.Application.Auth;
 using TaskManager.Application.Common;
+using TaskManager.Application.Matches;
+using TaskManager.Application.Reports;
 using TaskManager.Application.Tasks;
 using TaskManager.Domain.Repositories;
 using TaskManager.Infrastructure.Data;
@@ -42,6 +44,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IImportMatchService, ImportMatchService>();
+builder.Services.AddScoped<IReportService,ReportService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;

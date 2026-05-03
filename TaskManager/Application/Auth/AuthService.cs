@@ -23,7 +23,7 @@ public class AuthService : IAuthService
     
     public LoginResponse Login(LoginRequest request)
     {
-        if (!IsValideToken(request))
+        if (!IsValideUser(request))
             throw new BusinessException("Usuario ou senha invalidos");
         
         var accessToken = GenerateJwt(request.Username);
@@ -63,18 +63,29 @@ public class AuthService : IAuthService
             throw new BusinessException("Refresh token expirado");
 
         storedToken.IsRevoked = true;
+        
+        var newRefreshToken = Guid.NewGuid().ToString();
 
+        var newRefreshTokenItem = new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            Token = newRefreshToken,
+            Username = storedToken.Username,
+            ExpiresAt = DateTime.UtcNow.AddDays(2),
+            IsRevoked = false
+        };
+        
+        _context.RefreshTokens.Add(newRefreshTokenItem);
+        
         var newAccessToken = GenerateJwt(storedToken.Username);
-
+        
         _context.SaveChanges();
 
         return new LoginResponse
         {
             Token = newAccessToken,
-            RefreshToken = request.RefreshToken, // você pode trocar depois (rotacionar)
-            ExpiresTime = DateTime.UtcNow.AddMinutes(
-                int.Parse(_configuration["Jwt:ExpiresInMinutes"]!)
-            )
+            RefreshToken = newRefreshToken,
+            ExpiresTime = GetAccessTokenExpiration()
         };
     }
     
@@ -86,8 +97,6 @@ public class AuthService : IAuthService
         var expiresInMinutes = int.Parse(_configuration["Jwt:ExpiresInMinutes"]!);
 
         var expiresAt = DateTime.UtcNow.AddMinutes(expiresInMinutes);
-
-        string role = username == "admin" ? "Admin" : "User";
 
         var claims = new List<Claim>
         {
@@ -115,7 +124,7 @@ public class AuthService : IAuthService
         return DateTime.UtcNow.AddMinutes(expiresInMinutes);
     }
     
-    private static bool IsValideToken(LoginRequest request)
+    private static bool IsValideUser(LoginRequest request)
     {
         return (request.Username == "admin" && request.Password == "123456") ||
                (request.Username == "user" && request.Password == "123456");
