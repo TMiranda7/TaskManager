@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskManager.Application.Reports;
+using TaskManager.Application.Reports.Requests;
 
 namespace TaskManager.Controllers;
 
-[Authorize]
+//[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ReportsController : ControllerBase
@@ -17,9 +18,9 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("frequency-ranking")]
-    public async Task<IActionResult> GetFrequencyRanking()
+    public async Task<IActionResult> GetFrequencyRanking([FromQuery] ReportFilterRequest filter)
     {
-        var result = await _reportService.GetFrequencyRankingAsync();
+        var result = await _reportService.GetFrequencyRankingAsync(filter);
         return Ok(result);
     }
     

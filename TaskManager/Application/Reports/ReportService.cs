@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TaskManager.Application.Common.Exceptions;
 using TaskManager.Application.Matches.Requests;
+using TaskManager.Application.Reports.Requests;
 using TaskManager.Application.Reports.Responses;
 using TaskManager.Domain.Entities;
 using TaskManager.Infrastructure.Data;
@@ -16,7 +17,7 @@ public class ReportService : IReportService
         _context = context;
     }
     
-    public async Task<List<FrequencyRankingResponse>> GetFrequencyRankingAsync()
+    public async Task<List<FrequencyRankingResponse>> GetFrequencyRankingAsync(ReportFilterRequest request)
     {
         return await _context.Attendances
             .GroupBy(a => new
