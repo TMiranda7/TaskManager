@@ -1,30 +1,25 @@
 using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore;
 using TaskManager.Application.Common.Exceptions;
 using TaskManager.Application.Matches.Requests;
 using TaskManager.Application.Matches.Responses;
 using TaskManager.Domain.Entities;
-using TaskManager.Infrastructure.Data;
+using TaskManager.Domain.Repositories;
 using Match = TaskManager.Domain.Entities.Match;
-using MatchExpression = System.Text.RegularExpressions.Match;
 
 namespace TaskManager.Application.Matches;
 
 public class ImportMatchService : IImportMatchService
 {
-    private readonly AppDbContext _context;
+    private readonly IMatchRepository _matchRepository;
     
-    public ImportMatchService(AppDbContext context)
+    public ImportMatchService( IMatchRepository matchRepository)
     {
-        _context = context;
+        _matchRepository = matchRepository;
     }
 
     public async Task<MatchDetailResponse?> GetByIdAsync(Guid id)
     {
-        var match = await _context.Matches
-            .Include(m => m.Attendances).ThenInclude(a => a.Player)
-            .Include(m => m.Attendances).ThenInclude(a => a.InvitedByPlayer)
-            .FirstOrDefaultAsync(m => m.Id == id);  
+        var match = await _matchRepository.GetByIdWithAttendancesAsync(id); 
  
         if (match == null)
             return null;
@@ -48,7 +43,7 @@ public class ImportMatchService : IImportMatchService
         if (string.IsNullOrWhiteSpace(request.RawText))
             throw new ArgumentException("Texto do Whatsapp obrigatório", nameof(request.RawText));
         
-        var players = ExtratedPlayer(request.RawText);
+        var players = ExtractPlayer(request.RawText);
 
         var jogo = new Match
         {
@@ -57,40 +52,40 @@ public class ImportMatchService : IImportMatchService
             RawText = request.RawText,
             CreatedAt = DateTime.UtcNow
         };
-        
-        _context.Matches.Add(jogo);
+
+        await _matchRepository.AddMatchAsync(jogo);
 
         foreach (var player in players)
         {
-            var jogadorExiste = _context.Players.FirstOrDefault(x => x.Name.ToLower() == player.Name.ToLower());
+            var jogadorExiste = await _matchRepository.GetPlayerByNameAsync(player.Name);
 
             if (jogadorExiste == null)
             {
                 jogadorExiste = new Player
                 {
-                    Id = new Guid(),
+                    Id = Guid.NewGuid(),
                     Name = player.Name,
                     CreatedAt = DateTime.UtcNow
                 };
-                
-                _context.Players.Add(jogadorExiste);
+
+                await _matchRepository.AddPlayerAsync(jogadorExiste);
             }
             
             Player? invitedByPlayer = null;
 
             if (!string.IsNullOrWhiteSpace(player.InvitedBy))
             {
-                invitedByPlayer = await _context.Players.FirstOrDefaultAsync(x => x.Name == player.InvitedBy);
+                invitedByPlayer = await _matchRepository.GetPlayerByNameAsync(player.InvitedBy);
                 if (invitedByPlayer == null)
                 {
                     invitedByPlayer = new Player
                     {
-                        Id = new Guid(),
+                        Id = Guid.NewGuid(),
                         Name = player.InvitedBy,
                         CreatedAt = DateTime.UtcNow
                     };
                     
-                    _context.Players.Add(invitedByPlayer);
+                    await _matchRepository.AddPlayerAsync(invitedByPlayer);
                 }
             }
 
@@ -99,12 +94,13 @@ public class ImportMatchService : IImportMatchService
                 Id = Guid.NewGuid(),
                 MatchId = jogo.Id,
                 PlayerId = jogadorExiste.Id,
-                IsGoalkeeper = player.IsGoalkeeper
+                IsGoalkeeper = player.IsGoalkeeper,
+                InvitedByPlayerId = invitedByPlayer?.Id
             };
-            _context.Attendances.Add(presenca);
+            await _matchRepository.AddAttendanceAsync(presenca);
         }
         
-        await _context.SaveChangesAsync();
+        await _matchRepository.SaveChangesAsync();
         
         return jogo.Id ;
     }
@@ -114,26 +110,22 @@ public class ImportMatchService : IImportMatchService
         if (request.Goals < 0)
             throw new BusinessException("A quantidade de gols não pode ser negativa.");
 
-        var match = await _context.Matches
-            .FirstOrDefaultAsync(x => x.Id == matchId);
+        var match = await _matchRepository.GetByIdAsync(matchId);
 
         if (match == null)
             throw new NotFoundException("Racha não encontrado.");
 
-        var player = await _context.Players
-            .FirstOrDefaultAsync(x => x.Id == request.PlayerId);
+        var player = await _matchRepository.GetPlayerByIdAsync(request.PlayerId);
 
         if (player == null)
             throw new NotFoundException("Jogador não encontrado.");
 
-        var attendance = await _context.Attendances
-            .FirstOrDefaultAsync(x => x.MatchId == matchId && x.PlayerId == request.PlayerId);
+        var attendance =  await _matchRepository.GetAttendanceAsync(matchId, request.PlayerId);
 
         if (attendance == null)
             throw new BusinessException("Esse jogador não está presente nesse racha.");
 
-        var stat = await _context.MatchStats
-            .FirstOrDefaultAsync(x => x.MatchId == matchId && x.PlayerId == request.PlayerId);
+        var stat = await _matchRepository.GetMatchStatAsync(matchId, request.PlayerId);
 
         if (stat == null)
         {
@@ -146,40 +138,44 @@ public class ImportMatchService : IImportMatchService
                 IsHighlight = false
             };
 
-            _context.MatchStats.Add(stat);
+            await _matchRepository.AddMatchStatAsync(stat);
         }
         else
         {
             stat.Goals = request.Goals;
         }
 
-        await _context.SaveChangesAsync();
+        await _matchRepository.SaveChangesAsync();
     }
 
-    private List<ImportedPlayer> ExtratedPlayer(string rawText)
+    private List<ImportedPlayer> ExtractPlayer(string rawText)
     {
         var list = new List<ImportedPlayer>();       
         
         var pattern = @"\d+\s*-\s*([^\(\n]+)(?:\(([^)]+)\))?";
         
-        var matches =Regex.Matches(rawText, pattern);
-
-        foreach (MatchExpression match in matches)
+        var lines = rawText.Split('\n');
+        
+        foreach (var line in lines)
         {
-            var name = match.Groups[1].Value.Trim().ToLower();
-            var invitedBy = match.Groups[2].Success
-                ? match.Groups[2].Value.Trim().ToLower()
-                : null;
+            var players = Regex.Match(line, pattern);
 
-            if (!string.IsNullOrWhiteSpace(name))
+            if (!players.Success)
+                continue;
+
+            string name = players.Groups[1].Value.Trim();
+
+            string? invitedBy = players.Groups[2].Success ? players.Groups[2].Value.Trim() : null;
+
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+            
+            list.Add(new ImportedPlayer
             {
-                list.Add(new ImportedPlayer
-                {
-                    Name = name,
-                    InvitedBy = invitedBy,
-                    IsGoalkeeper = false
-                });
-            }
+                Name = name,
+                InvitedBy = invitedBy,
+                IsGoalkeeper = false
+            });
         }
         
         return list;
