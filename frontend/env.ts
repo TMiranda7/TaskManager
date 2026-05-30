@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const API_PORT = 5094;
+const PRODUCTION_API_BASE_URL = 'https://hashstats-api-dev.azurewebsites.net';
 
 function hostFromDevServerUri(uri: string | undefined): string | null {
   if (!uri) {
@@ -31,12 +32,7 @@ function getDevMachineHost(): string | null {
   return hostFromDevServerUri(Constants.expoConfig?.hostUri);
 }
 
-function resolveApiBaseUrl(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (fromEnv) {
-    return fromEnv.replace(/\/$/, '');
-  }
-
+function resolveDevelopmentApiBaseUrl(): string {
   const devHost = getDevMachineHost();
   if (devHost) {
     return `http://${devHost}:${API_PORT}`;
@@ -49,7 +45,13 @@ function resolveApiBaseUrl(): string {
   return `http://localhost:${API_PORT}`;
 }
 
-export const API_BASE_URL = resolveApiBaseUrl();
+function resolveProductionApiBaseUrl(): string {
+  return PRODUCTION_API_BASE_URL.replace(/\/$/, '');
+}
+
+export const API_BASE_URL = __DEV__
+  ? resolveDevelopmentApiBaseUrl()
+  : resolveProductionApiBaseUrl();
 
 if (__DEV__) {
   console.log('[RachaStats] API_BASE_URL:', API_BASE_URL);
