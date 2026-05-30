@@ -52,9 +52,16 @@ public class MatchRepository : IMatchRepository
     public async Task<Player?> GetPlayerByNameAsync(string name)
     {
         var normalizedName = PlayerNameNormalizer.Normalize(name);
-        var players = await _context.Players.ToListAsync();
+        
+        await foreach (var player in _context.Players.AsNoTracking().AsAsyncEnumerable())
+        {
+            if (PlayerNameNormalizer.Normalize(player.Name) == normalizedName)
+            {
+                return player;
+            }
+        }
 
-        return players.FirstOrDefault(x => PlayerNameNormalizer.Normalize(x.Name) == normalizedName);
+        return null;
     }
 
     public async Task<Player?> GetPlayerByIdAsync(Guid Id)
