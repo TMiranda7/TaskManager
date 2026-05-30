@@ -123,6 +123,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+await AuthUserSeeder.SeedAsync(app.Services);
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>

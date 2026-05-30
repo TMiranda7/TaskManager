@@ -5,6 +5,6 @@ namespace RachaStats.Application.Auth;
 
 public interface IAuthService
 {
-    LoginResponse Login(LoginRequest request);
-    LoginResponse RefreshToken(RefreshTokensRequest request);
+    Task<LoginResponse> LoginAsync(LoginRequest request);
+    Task<LoginResponse> RefreshTokenAsync(RefreshTokensRequest request);
 }

@@ -1,6 +1,7 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RachaStats.Application.Auth.Requests;
 using RachaStats.Application.Auth.Response;
@@ -17,29 +18,35 @@ public class AuthService : IAuthService
     
     public AuthService(IConfiguration configuration, AppDbContext context)
     {
-            _configuration = configuration;
-            _context = context;
+        _configuration = configuration;
+        _context = context;
     }
     
-    public LoginResponse Login(LoginRequest request)
+    public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
-        if (!IsValideUser(request))
+        var username = request.Username.Trim();
+        var passwordHash = PasswordHasher.ComputeSha256(request.Password);
+        var user = await _context.AppUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(appUser => appUser.Username == username && appUser.PasswordHash == passwordHash);
+
+        if (user is null)
             throw new BusinessException("Usuario ou senha invalidos");
         
-        var accessToken = GenerateJwt(request.Username);
+        var accessToken = GenerateJwt(user.Username, user.Role);
         var refreshToken = Guid.NewGuid().ToString();
 
         var refreshTokenEntity = new RefreshToken
         {
             Id = Guid.NewGuid(),
             Token = refreshToken,
-            Username = request.Username,
+            Username = user.Username,
             ExpiresAt = DateTime.UtcNow.AddDays(7),
             IsRevoked = false
         };
         
-        _context.RefreshTokens.Add(refreshTokenEntity);
-        _context.SaveChanges();
+        await _context.RefreshTokens.AddAsync(refreshTokenEntity);
+        await _context.SaveChangesAsync();
 
         return new LoginResponse
         {
@@ -48,10 +55,11 @@ public class AuthService : IAuthService
             RefreshToken = refreshToken
         };
     }
-    public LoginResponse RefreshToken(RefreshTokensRequest request)
+
+    public async Task<LoginResponse> RefreshTokenAsync(RefreshTokensRequest request)
     {
-        var storedToken = _context.RefreshTokens
-            .FirstOrDefault(x => x.Token == request.RefreshToken);
+        var storedToken = await _context.RefreshTokens
+            .FirstOrDefaultAsync(x => x.Token == request.RefreshToken);
 
         if (storedToken == null)
             throw new BusinessException("Refresh token inválido");
@@ -75,11 +83,20 @@ public class AuthService : IAuthService
             IsRevoked = false
         };
         
-        _context.RefreshTokens.Add(newRefreshTokenItem);
+        await _context.RefreshTokens.AddAsync(newRefreshTokenItem);
         
-        var newAccessToken = GenerateJwt(storedToken.Username);
+        var userRole = await _context.AppUsers
+            .AsNoTracking()
+            .Where(appUser => appUser.Username == storedToken.Username)
+            .Select(appUser => appUser.Role)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrWhiteSpace(userRole))
+            throw new BusinessException("Usuario do refresh token nao foi encontrado");
+
+        var newAccessToken = GenerateJwt(storedToken.Username, userRole);
         
-        _context.SaveChanges();
+        await _context.SaveChangesAsync();
 
         return new LoginResponse
         {
@@ -89,7 +106,7 @@ public class AuthService : IAuthService
         };
     }
     
-    private string GenerateJwt(string username)
+    private string GenerateJwt(string username, string role)
     {
         var key = _configuration["Jwt:Key"]!;
         var issuer = _configuration["Jwt:Issuer"]!;
@@ -101,7 +118,7 @@ public class AuthService : IAuthService
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, username),
-            new Claim(ClaimTypes.Role, GetRole(username))
+            new Claim(ClaimTypes.Role, role)
         };
 
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
@@ -122,17 +139,5 @@ public class AuthService : IAuthService
     {
         var expiresInMinutes = int.Parse(_configuration["Jwt:ExpiresInMinutes"]!);
         return DateTime.UtcNow.AddMinutes(expiresInMinutes);
-    }
-    
-    private static bool IsValideUser(LoginRequest request)
-    {
-        return (request.Username == "admin" && request.Password == "123456") ||
-               (request.Username == "user" && request.Password == "123456");
-
-    }
-
-    private static string GetRole(string userName)
-    {
-        return userName == "admin" ? "Admin" : "User";
     }
 }

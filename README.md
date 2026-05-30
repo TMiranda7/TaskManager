@@ -15,6 +15,22 @@ dotnet run --project RachaStats/RachaStats.csproj
 
 API local: `http://localhost:5094`
 
+Configuracao de usuarios para login:
+
+- O login agora consulta a tabela `AppUsers` no banco de dados
+- A senha enviada no login continua no campo `password`
+- Antes de comparar, a API gera `SHA256` e compara com `PasswordHash`
+- Desenvolvimento: usuarios iniciais podem ser configurados em `backend/RachaStats/appsettings.Development.json` na secao `Auth:SeedUsers`
+- Producao: usuarios iniciais podem ser configurados temporariamente com `Auth__SeedUsers__0__Username`, `Auth__SeedUsers__0__Password` e `Auth__SeedUsers__0__Role`
+- O bootstrap aplica as migrations pendentes e insere os usuarios iniciais apenas se o `Username` ainda nao existir
+
+Para criar a estrutura manualmente com EF:
+
+```bash
+cd backend/RachaStats
+dotnet ef database update
+```
+
 Endpoints principais:
 
 - `POST /api/Auth/login`
@@ -39,6 +55,19 @@ Atalhos úteis:
 - `npm run android`
 - `npm run web`
 
+## Ambiente publicado
+
+API publicada:
+
+- URL da API: `https://SEU-APP-SERVICE.azurewebsites.net`
+- Swagger: `https://SEU-APP-SERVICE.azurewebsites.net/swagger`
+
+Configuracao do frontend para producao:
+
+- Crie `frontend/.env` com `EXPO_PUBLIC_API_URL=https://SEU-APP-SERVICE.azurewebsites.net`
+- Reinicie o Expo apos alterar a variavel: `npm run start`
+- Para build web ou mobile, garanta que o valor de `EXPO_PUBLIC_API_URL` aponte para a URL HTTPS publicada
+
 ## Fluxo do app
 
 - Login com JWT e refresh automático da sessao.
@@ -52,4 +81,5 @@ Arquivo: `frontend/env.ts`
 - **Celular fisico (Expo Go):** o app detecta automaticamente o IP do computador pela conexao com o Metro. Celular e PC precisam estar na mesma rede Wi-Fi, e o backend deve estar rodando (`dotnet run`).
 - **iOS Simulator / Web:** `http://localhost:5094`
 - **Android Emulator:** `http://10.0.2.2:5094`
-- **Override manual:** crie `frontend/.env` com `EXPO_PUBLIC_API_URL=http://SEU_IP:5094` e reinicie o Expo (`npm run start`).
+- **Override manual local:** crie `frontend/.env` com `EXPO_PUBLIC_API_URL=http://SEU_IP:5094` e reinicie o Expo (`npm run start`).
+- **Override manual producao:** use `EXPO_PUBLIC_API_URL=https://SEU-APP-SERVICE.azurewebsites.net`
