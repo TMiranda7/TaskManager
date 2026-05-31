@@ -57,10 +57,10 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>{loading ? 'Entrando...' : 'Entrar'}</Text>
         </Pressable>
 
-        <Text style={styles.tip}>Versao : teste</Text>
+        <Text style={styles.tip}>Versao : beta</Text>
       </View>
 
-      <Text style={styles.rights}>todos os direitos reservados</Text>
+      <Text style={styles.rights}>todos os direitos reservados™</Text>
     </View>
   );
 }
