@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RachaStats.Application.Auth;
 using RachaStats.Application.Common;
+using RachaStats.Application.Highlights;
 using RachaStats.Application.Matches;
 using RachaStats.Application.Reports;
 using RachaStats.Domain.Repositories;
@@ -40,12 +41,18 @@ builder.Services.AddEndpointsApiExplorer();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(
+        connectionString,
+        sql =>
+        {
+            sql.EnableRetryOnFailure();
+        }));
 
 builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IImportMatchService, ImportMatchService>();
 builder.Services.AddScoped<IReportService,ReportService>();
+builder.Services.AddScoped<IHighlightService,HighlightService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 var jwtIssuer = builder.Configuration["Jwt:Issuer"]!;
