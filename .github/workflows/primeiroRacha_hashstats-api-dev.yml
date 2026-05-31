@@ -4,33 +4,39 @@
 name: 'Build and deploy ASP.Net Core app to Azure Web App: hashstats-api-dev'
 
 on:
+  pull_request:
+    branches:
+    - main
   push:
     branches:
-    - primeiroRacha
+    - main
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      AZURE_PUBLISH_PROFILE: ${{ secrets.AzureAppService_PublishProfile_9fcebeedd022436aaea1fb84095de56b }}
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     
     - name: Set up .NET Core
-      uses: actions/setup-dotnet@v1
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '10.x'
 
     - name: Build with dotnet
-      run: dotnet build --configuration Release
+      run: dotnet build RachaStats.slnx --configuration Release
     
     - name: dotnet publish
-      run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp 
+      run: dotnet publish backend/RachaStats/RachaStats.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp 
 
     - name: Deploy to Azure Web App
+      if: github.event_name != 'pull_request' && env.AZURE_PUBLISH_PROFILE != ''
       uses: azure/webapps-deploy@v2
       with: 
         app-name: 'hashstats-api-dev'
         slot-name: 'production'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_9fcebeedd022436aaea1fb84095de56b }}
+        publish-profile: ${{ env.AZURE_PUBLISH_PROFILE }}
         package: ${{env.DOTNET_ROOT}}/myapp 
