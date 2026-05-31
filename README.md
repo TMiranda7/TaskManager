@@ -64,9 +64,9 @@ API publicada:
 
 Configuracao do frontend para producao:
 
-- Crie `frontend/.env` com `EXPO_PUBLIC_API_URL=https://SEU-APP-SERVICE.azurewebsites.net`
+- A URL de producao esta centralizada no codigo frontend: `https://hashstats-api-dev.azurewebsites.net`
 - Reinicie o Expo apos alterar a variavel: `npm run start`
-- Para build web ou mobile, garanta que o valor de `EXPO_PUBLIC_API_URL` aponte para a URL HTTPS publicada
+- Para trocar o endpoint publicado no futuro, altere `PRODUCTION_API_BASE_URL` em `frontend/env.ts`
 
 ## Fluxo do app
 
@@ -78,8 +78,8 @@ Configuracao do frontend para producao:
 
 Arquivo: `frontend/env.ts`
 
-- **Celular fisico (Expo Go):** o app detecta automaticamente o IP do computador pela conexao com o Metro. Celular e PC precisam estar na mesma rede Wi-Fi, e o backend deve estar rodando (`dotnet run`).
-- **iOS Simulator / Web:** `http://localhost:5094`
-- **Android Emulator:** `http://10.0.2.2:5094`
-- **Override manual local:** crie `frontend/.env` com `EXPO_PUBLIC_API_URL=http://SEU_IP:5094` e reinicie o Expo (`npm run start`).
-- **Override manual producao:** use `EXPO_PUBLIC_API_URL=https://SEU-APP-SERVICE.azurewebsites.net`
+- Desenvolvimento volta a usar a logica anterior para backend local
+- Expo Go tenta descobrir o IP da maquina automaticamente
+- Android Emulator usa `http://10.0.2.2:5094`
+- iOS Simulator e Web usam `http://localhost:5094`
+- Producao usa `PRODUCTION_API_BASE_URL` fixo no codigo
