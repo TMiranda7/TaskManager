@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const API_PORT = 5094;
-const PRODUCTION_API_BASE_URL = 'https://hashstats-api-dev.azurewebsites.net';
+const PRODUCTION_API_BASE_URL ='https://hashstats-api-dev-atejdebbh5atgjer.brazilsouth-01.azurewebsites.net';
 
 function hostFromDevServerUri(uri: string | undefined): string | null {
   if (!uri) {
