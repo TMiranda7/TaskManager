@@ -1,10 +1,25 @@
 namespace RachaStats.Domain.Entities;
 
-public class AppUser
+public enum PaymentStatus
+{
+    Pending = 1,
+    Confirmed = 2,
+    Rejected = 3
+}
+
+public class MatchPayment
 {
     public Guid Id { get; set; }
-    public string Username { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
-    public string Role { get; set; } = "User";
-    public DateTime CreatedAt { get; set; }
+
+    public Guid MatchId { get; set; }
+    public Match Match { get; set; } = null!;
+
+    public Guid PlayerId { get; set; }
+    public Player Player { get; set; } = null!;
+
+    public string SourceMessage { get; set; } = string.Empty;
+
+    public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
