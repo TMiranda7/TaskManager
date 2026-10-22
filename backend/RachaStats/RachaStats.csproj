@@ -24,6 +24,9 @@
 
     <ItemGroup>
       <Folder Include="Infrastructure\Storage\" />
+      <Content Remove="publish/**;*.zip;appsettings.Local.json;appsettings.Development.json" />
+      <None Remove="publish/**;*.zip;appsettings.Local.json" />
+      <Content Include="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
     </ItemGroup>
 
 </Project>
