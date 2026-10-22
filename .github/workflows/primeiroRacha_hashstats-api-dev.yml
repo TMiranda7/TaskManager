@@ -20,6 +20,33 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+
+    - name: Require publish profile for deployment
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+      shell: bash
+      run: |
+        if [ -z "$AZURE_PUBLISH_PROFILE" ]; then
+          echo "::error::The App Service publish profile secret is required for deployment."
+          exit 1
+        fi
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.19.0'
+        cache: npm
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install frontend dependencies
+      run: npm --prefix frontend ci
+
+    - name: Build Expo Web
+      run: npm --prefix frontend run build:web
+
+    - name: Verify Expo Web output
+      run: |
+        test -s frontend/dist/index.html
+        test -n "$(find frontend/dist/_expo -name '*.js' -type f -print -quit)"
     
     - name: Set up .NET Core
       uses: actions/setup-dotnet@v4
@@ -30,13 +57,24 @@ jobs:
       run: dotnet build RachaStats.slnx --configuration Release
     
     - name: dotnet publish
-      run: dotnet publish backend/RachaStats/RachaStats.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp 
+      run: dotnet publish backend/RachaStats/RachaStats.csproj -c Release -o ./artifacts/publish
+
+    - name: Include Expo Web in deployment package
+      run: |
+        mkdir -p artifacts/publish/wwwroot
+        cp -R frontend/dist/. artifacts/publish/wwwroot/
+        test -s artifacts/publish/wwwroot/index.html
+        test -n "$(find artifacts/publish/wwwroot/_expo -name '*.js' -type f -print -quit)"
+        test ! -e artifacts/publish/appsettings.Local.json
+        test ! -e artifacts/publish/appsettings.Development.json
+        test ! -d artifacts/publish/publish
+        test -z "$(find artifacts/publish -name '*.zip' -type f -print -quit)"
 
     - name: Deploy to Azure Web App
-      if: github.event_name != 'pull_request' && env.AZURE_PUBLISH_PROFILE != ''
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
       uses: azure/webapps-deploy@v2
       with: 
         app-name: 'hashstats-api-dev'
         slot-name: 'production'
         publish-profile: ${{ env.AZURE_PUBLISH_PROFILE }}
-        package: ${{env.DOTNET_ROOT}}/myapp 
+        package: ./artifacts/publish

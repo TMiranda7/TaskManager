@@ -16,6 +16,13 @@ using RachaStats.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
+    builder.Configuration.AddEnvironmentVariables();
+    builder.Configuration.AddCommandLine(args);
+}
+
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
@@ -130,7 +137,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-await AuthUserSeeder.SeedAsync(app.Services);
+await DatabaseInitializer.InitializeAsync(app.Services);
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
@@ -153,6 +160,31 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseDefaultFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        if (context.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase))
+            context.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
+
 app.MapControllers();
+foreach (var prefix in new[] { "/api", "/swagger", "/assets", "/_expo" })
+{
+    app.MapFallback(prefix + "/{**path}", context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return Task.CompletedTask;
+    }).WithOrder(int.MaxValue - 1);
+}
+
+app.MapFallbackToFile("{*path:nonfile}", "index.html", new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+        context.Context.Response.Headers.CacheControl = "no-cache"
+});
 
 app.Run();

@@ -26,3 +26,7 @@ frontend/node_modules/
 frontend/.expo/
 frontend/dist/
 frontend/web-build/
+backend/RachaStats/appsettings.Local.json
+backend/RachaStats/publish/
+backend/RachaStats/*.zip
+artifacts/

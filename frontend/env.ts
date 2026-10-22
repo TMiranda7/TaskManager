@@ -46,6 +46,10 @@ function resolveDevelopmentApiBaseUrl(): string {
 }
 
 function resolveProductionApiBaseUrl(): string {
+  if (Platform.OS === 'web') {
+    return '';
+  }
+
   return PRODUCTION_API_BASE_URL.replace(/\/$/, '');
 }
 

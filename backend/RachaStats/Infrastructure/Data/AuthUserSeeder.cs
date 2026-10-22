@@ -13,8 +13,10 @@ public static class AuthUserSeeder
         using var scope = services.CreateScope();
 
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await context.Database.MigrateAsync();
+        if (!configuration.GetValue<bool>("DatabaseInitialization:SeedUsers"))
+        {
+            return;
+        }
 
         var seedUsers = configuration
             .GetSection(SeedUsersSectionName)
@@ -25,6 +27,7 @@ public static class AuthUserSeeder
             return;
         }
 
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var hasChanges = false;
 
         foreach (var seedUser in seedUsers)
