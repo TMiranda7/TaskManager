@@ -174,7 +174,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapControllers();
 foreach (var prefix in new[] { "/api", "/swagger", "/assets", "/_expo" })
 {
-    app.MapFallback(prefix + "/{**path}", context =>
+    app.MapFallback(prefix + "/{**path:nonfile}", context =>
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         return Task.CompletedTask;
