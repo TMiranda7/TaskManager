@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '../src/auth/AuthContext';
 import { AccordionSection } from '@/src/components/AccordionSection';
 import { Artilharia } from '@/src/components/Artilharia';
@@ -21,7 +21,8 @@ import { colors } from '@/styles/theme';
 import { styles } from '@/styles/home.styles';
 
 export default function HomeScreen() {
-  const { token, signOut } = useAuth();
+  const { token, loading: authLoading, signOut } = useAuth();
+  const rootNavigationState = useRootNavigationState();
   const [frequencyRanking, setFrequencyRanking] = useState<FrequencyRankingItem[]>([]);
   const [goalsRanking, setGoalsRanking] = useState<GoalsRankingItem[]>([]);
   const [lastImportedMatch, setLastImportedMatch] = useState<MatchDetail | null>(null);
@@ -51,13 +52,17 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
+    if (authLoading || !rootNavigationState?.key) {
+      return;
+    }
+
     if (!token) {
       router.replace('/login');
       return;
     }
 
     loadDashboard();
-  }, [token]);
+  }, [token, authLoading, rootNavigationState?.key]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -106,7 +111,7 @@ export default function HomeScreen() {
     }
   };
 
-  if (loading) {
+  if (authLoading || !rootNavigationState?.key || !token || loading) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.textPrimary} />
